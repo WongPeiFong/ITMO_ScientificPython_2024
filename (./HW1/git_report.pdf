@@ -1,0 +1,9 @@
+this is my first time using this site, it might be a version management platform and is able to let a group of people to edit an project by making some branch, and everyone can doing some edition in each file and laster can merge to the main branch (as i understand)
+There are many terminalogy using for this site like repo or repository, "commit" a change, "pull" resquest something like this.
+Have made an account, made a repository, made a branch,generated three txt files, made an other branch, did some change in 2 of them. Later merge the testing branch with HW1 branch.
+i don't know how to describe  repo state after have done these.
+At this step there is a revert button to undo the merge but when i click it there was a new branch generacted.
+But here i just follow the step 15 go to testing branch to changed the third file then merged the testing branch with HW1 branch again. After this i delete the revert branch.
+Actually i don't understand why we never go to that revert branch jsut repeat as step 6 or step 8 cnahging something ane commited later merge.
+Finally, i merged the HW1 branch to the main branch.
+i think i succeeded? and i don't know what dose it mean behavior of git, in which way it should behave?
