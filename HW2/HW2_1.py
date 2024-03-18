@@ -42,6 +42,18 @@ def parse_response_ensembl(response):
             'description': entry['desc']
         }
     return parsed_data
+uniprot_ids = ['P11473', 'Q91XI3']
+ensembl_ids = ['ENSMUSG00000041147', 'ENSG00000139618']
+uniprot_response = get_uniprot(uniprot_ids)
+parsed_uniprot_data = parse_response_uniprot(uniprot_response)
+print("Uniprot Data:")
+print(parsed_uniprot_data)
+
+ensembl_response = get_ensembl(ensembl_ids)
+parsed_ensembl_data = parse_response_ensembl(ensembl_response)
+print("\nENSEMBL Data:")
+print(parsed_ensembl_data)
+
 #  second task
 import re
 uniprot_pattern = re.compile(r'^[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z]\d[A-Z][A-Z\d]\d$')
@@ -67,3 +79,7 @@ def fetch_and_parse_data(ids):
         parsed_ensembl_data = parse_response_ensembl(ensembl_response)
         parsed_data['ENSEMBL'] = parsed_ensembl_data
     return parsed_data
+ids = ['ENSMUSG00000041147', 'ENSG00000139618', 'P11473', 'Q91XI3']
+parsed_data = fetch_and_parse_data(ids)
+print("Parsed Data:")
+print(parsed_data)
