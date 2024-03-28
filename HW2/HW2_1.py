@@ -56,8 +56,8 @@ print(parsed_ensembl_data)
 
 #  second task
 import re
-uniprot_pattern = re.compile(r'^[OPQ][0-9][A-Z0-9]{3}[0-9][A-Z][A-Z\d]\d$')
-ensembl_pattern = re.compile(r'^ENS[A-Z]{3}\d{11}$')
+uniprot_pattern = re.compile(r'^[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z]\d[A-Z][A-Z\d]{2}\d$')
+ensembl_pattern = re.compile(r'^ENS[A-Z]{1,2}[A-Z]{3}\d{11}$')
 def fetch_and_parse_data(ids):
     uniprot_ids = []
     ensembl_ids = []
