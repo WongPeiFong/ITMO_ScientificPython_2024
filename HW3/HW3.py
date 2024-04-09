@@ -41,10 +41,19 @@ class Car:
     def show_weather(self):
         weather_conditions = ['Sunny', 'Rainy', 'Cloudy', 'Stormy']
         return random.choice(weather_conditions)
-# Using staticmethod
+# Staticmethod
     def get_num_cars_on_road():
         return Car.num_cars_on_road
     def increase_speed_iterator(self, max_speed):
         return IncreaseSpeedIterator(self, max_speed)
     def decrease_speed_iterator(self):
         return DecreaseSpeedIterator(self)
+# Classmethod because it operates on the class level to provide a common speed limit for all cars.
+    def get_speed_limit(cls):
+        return 60
+# Staticmethod because it doesn't rely on any instance or class variables and provides a generic behavior.
+    def honk():
+        print("Honk honk!")
+# Regularmethod used to provide a string representation of the Car instance.
+    def __str__(self):
+        return f"Car(speed={self.speed}, on_road={self.on_road})"
