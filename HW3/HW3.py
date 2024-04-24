@@ -29,31 +29,31 @@ class Car:
         self.on_road = on_road
         if self.on_road:
             Car.num_cars_on_road += 1
-    def increase_speed(self, amount):
+    def accelerate(self, amount):
         self.speed += amount
-    def decrease_speed(self, amount):
+    def brake(self, amount):
         self.speed -= amount
         if self.speed < 0:
             self.speed = 0
-    def go_to_parking(self):
-        self.on_road = False
-        Car.num_cars_on_road -= 1
-    def show_weather(self):
-        weather_conditions = ['Sunny', 'Rainy', 'Cloudy', 'Stormy']
-        return random.choice(weather_conditions)
-# Staticmethod
-    def get_num_cars_on_road():
-        return Car.num_cars_on_road
-    def increase_speed_iterator(self, max_speed):
-        return IncreaseSpeedIterator(self, max_speed)
-    def decrease_speed_iterator(self):
-        return DecreaseSpeedIterator(self)
-# Classmethod because it operates on the class level to provide a common speed limit for all cars.
+    @classmethod
     def get_speed_limit(cls):
         return 60
-# Staticmethod because it doesn't rely on any instance or class variables and provides a generic behavior.
+    @staticmethod
     def honk():
         print("Honk honk!")
-# Regularmethod used to provide a string representation of the Car instance.
+    @staticmethod
+    def get_weather():
+        response = requests.get('https://api.openmeteo.org')
+        if response.status_code == 200:
+            data = response.json()
+            return data['weather']
+        else:
+            return "Unknown"
+    @classmethod
+    def get_num_cars_on_road(cls):
+        return cls.num_cars_on_road
+    @staticmethod
+    def go_to_parking():
+        Car.num_cars_on_road -= 1
     def __str__(self):
         return f"Car(speed={self.speed}, on_road={self.on_road})"
