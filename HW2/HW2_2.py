@@ -1,5 +1,6 @@
 import requests
 import subprocess
+import json
 from Bio import SeqIO
 import re
 
@@ -59,7 +60,7 @@ def fetch_and_parse_data(ids_dict):
             parsed_data['Uniprot'] = parse_response_uniprot(uniprot_response)
         else:
             parsed_data['Uniprot'] = f"Failed to fetch data from Uniprot. Status code: {uniprot_response.status_code}"
-    
+
     if ensembl_ids:
         ensembl_response = get_ensembl(ensembl_ids)
         if ensembl_response.status_code == 200:
@@ -68,8 +69,9 @@ def fetch_and_parse_data(ids_dict):
             parsed_data['ENSEMBL'] = f"Failed to fetch data from ENSEMBL. Status code: {ensembl_response.status_code}"
 
     return parsed_data
-uniprot_pattern = re.compile(r'^[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z]\d[A-Z][A-Z\d]{2}\d{1,2}$')
-ensembl_pattern = re.compile(r'^ENS[A-Z]{1,2}[A-Z]{3}\d{11}$')
+
+uniprot_pattern = re.compile(r'[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z]\d[A-Z][A-Z\d]{2}\d{1,2}')
+ensembl_pattern = re.compile(r'ENS[A-Z]{1,2}[A-Z]{3}\d{11}')
 
 def find_uniprot_ensembl_ids(sequences, file_type):
     ids = {'Uniprot': [], 'ENSEMBL': []}
@@ -82,7 +84,7 @@ def find_uniprot_ensembl_ids(sequences, file_type):
             ids[ids_key].append(match.group())
 
     return ids
-  
+
 def call_seqkit_stats(fasta_file):
     try:
         result = subprocess.run(["seqkit", "stats", fasta_file], capture_output=True, text=True)
@@ -97,18 +99,6 @@ def parse_seqkit_stats(stats_output):
         return "Protein"
     else:
         return None 
-
-def find_uniprot_ensembl_ids(description, file_type):
-    uniprot_pattern = re.compile(r'^[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z]\d[A-Z][A-Z\d]{2}\d{1,2}$')
-    ensembl_pattern = re.compile(r'^ENS[A-Z]{1,2}[A-Z]{3}\d{11}$')
-
-    pattern = uniprot_pattern if file_type == 'Protein' else ensembl_pattern
-    match = re.search(pattern, description)
-
-    if match:
-        return match.group()
-    else:
-        return None
 
 def call_database_api(ids, database):
     if database == 'Uniprot':
@@ -147,14 +137,10 @@ def process_fasta_file(fasta_file):
                 "sequence": str(record.seq)
             })
 
-    ids = []
-    for sequence in sequences:
-        id_match = find_uniprot_ensembl_ids(sequence['description'], file_type)
-        if id_match:
-            ids.append(id_match)
-
-    if ids:
-        db_info = call_database_api(ids, 'Uniprot' if file_type == 'Protein' else 'ENSEMBL')
+    ids = find_uniprot_ensembl_ids(sequences, file_type)
+    
+    if ids['Uniprot'] or ids['ENSEMBL']:
+        db_info = fetch_and_parse_data(ids)
     else:
         db_info = "No Uniprot or ENSEMBL IDs found in sequence descriptions."
 
