@@ -67,8 +67,8 @@ def fit_Ridge(X_train, X_test, y_train, y_test):
 
     return grid, y_pred, metric
 
-def desc_calc(smiles_list) -> pd.DataFrame:
-    return molecular_descriptors.calculate_descriptors(smiles_list)
+def desc_calc(smiles_list, mode) -> pd.DataFrame:
+    return molecular_descriptors.getAllDescriptors(smiles_list, mode)
 
 def sar_model_evaluation(descriptors: pd.DataFrame, target: pd.Series):
     y = target
@@ -131,17 +131,17 @@ if __name__ == "__main__":
 
     train_data = pd.read_csv('logpfull.csv')  # or 'logp100.csv' for faster computations
     pred_data = pd.read_csv('logp_inputs.csv')
-    cpds = [row for row in pred_data['SMILES']]
+    cpds = pred_data['SMILES'].tolist()
 
     print("Calculating descriptors for training data...")
-    train_descriptors = desc_calc(train_data['SMILES'])
+    train_descriptors = desc_calc(train_data['SMILES'], mode='train')
     print("Calculating descriptors for prediction data...")
-    pred_descriptors = desc_calc(pred_data['SMILES'])
+    pred_descriptors = desc_calc(pred_data['SMILES'], mode='predict')
 
     print("Evaluating regression model parameters...")
-    model, y_pred, metrics = sar_model_evaluation(train_descriptors, train_data['LogP'])
-    print('Best parameters are:', model[0].best_params_)
-    cols = model[0].best_estimator_.named_steps['feature_selection'].get_support(indices=True)
+    model, y_pred, metrics_values = sar_model_evaluation(train_descriptors, train_data['LogP'])
+    print('Best parameters are:', model.best_params_)
+    cols = model.best_estimator_.named_steps['feature_selection'].get_support(indices=True)
 
     print("Training the model with the best parameters...")
     final_model = sar_model_train(train_descriptors, train_data['LogP'], cols)
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         print("Filtering logP...")
         for cid in similarity:
             xlogp = get_xlogp(cid)
-            if xlogp:
+            if xlogp is not None:
                 if pred * 0.9 <= xlogp <= pred * 1.1:
                     result.append((cid, xlogp))
 
