@@ -4,49 +4,40 @@ import json
 from Bio import SeqIO
 import re
 
+UNIPROT_BASE_URL = 'https://rest.uniprot.org/uniprotkb/accessions'
+ENSEMBL_BASE_URL = 'https://rest.ensembl.org/sequence/id/'
+
+UNIPROT_PATTERN = re.compile(r'[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z]\d[A-Z][A-Z\d]{2}\d{1,2}')
+ENSEMBL_PATTERN = re.compile(r'ENS[A-Z]{1,2}[A-Z]{3}\d{11}')
+
 def get_uniprot(ids):
-    base_url = 'https://www.uniprot.org/uploadlists/'
-    params = {
-        'from': 'ID',
-        'to': 'ACC',
-        'format': 'tab',
-        'query': ' '.join(ids)
-    }
-    response = requests.get(base_url, params=params)
+    accessions = ','.join(ids)
+    http_args = {'params': {'accessions': accessions}}
+    response = requests.get(UNIPROT_BASE_URL, **http_args)
     return response
 
 def parse_response_uniprot(response):
+    data = response.json()
     parsed_data = []
-    lines = response.text.split('\n')
-    for line in lines[1:]:
-        fields = line.strip().split('\t')
+    for entry in data.get('results', []):
         parsed_data.append({
-            'Entry': fields[0],
-            'Status': fields[1],
-            'Entry name': fields[2],
-            'Protein names': fields[3],
-            'Gene names': fields[4],
-            'Organism': fields[5],
-            'Length': fields[6]
+            'Entry': entry['primaryAccession'],
+            'Protein names': entry['proteinDescription']['recommendedName']['fullName']['value'] if 'recommendedName' in entry['proteinDescription'] else None,
+            'Gene names': ', '.join([gene['geneName']['value'] for gene in entry['genes']]) if 'genes' in entry else None,
+            'Organism': entry['organism']['scientificName'],
+            'Length': entry['sequence']['length']
         })
     return parsed_data
 
 def get_ensembl(ids):
-    base_url = 'https://rest.ensembl.org/sequence/id/'
     headers = {'Content-Type': 'application/json'}
-    data = {'ids': ids, 'content-type': 'application/json'}
-    response = requests.post(base_url, headers=headers, data=json.dumps(data))
+    data = {'ids': ids}
+    response = requests.post(ENSEMBL_BASE_URL, headers=headers, data=json.dumps(data))
     return response
 
 def parse_response_ensembl(response):
-    parsed_data = {}
     data = response.json()
-    for entry in data:
-        parsed_data[entry['id']] = {
-            'sequence': entry['seq'],
-            'molecule': entry['molecule'],
-            'description': entry['desc']
-        }
+    parsed_data = {entry['id']: entry for entry in data}
     return parsed_data
 
 def fetch_and_parse_data(ids_dict):
@@ -70,12 +61,9 @@ def fetch_and_parse_data(ids_dict):
 
     return parsed_data
 
-uniprot_pattern = re.compile(r'[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z]\d[A-Z][A-Z\d]{2}\d{1,2}')
-ensembl_pattern = re.compile(r'ENS[A-Z]{1,2}[A-Z]{3}\d{11}')
-
 def find_uniprot_ensembl_ids(sequences, file_type):
     ids = {'Uniprot': [], 'ENSEMBL': []}
-    pattern = uniprot_pattern if file_type == 'Protein' else ensembl_pattern
+    pattern = UNIPROT_PATTERN if file_type == 'Protein' else ENSEMBL_PATTERN
 
     for sequence in sequences:
         match = re.search(pattern, sequence['description'])
@@ -99,26 +87,6 @@ def parse_seqkit_stats(stats_output):
         return "Protein"
     else:
         return None 
-
-def call_database_api(ids, database):
-    if database == 'Uniprot':
-        base_url = 'https://www.uniprot.org/uploadlists/'
-        params = {
-            'from': 'ID',
-            'to': 'ACC',
-            'format': 'tab',
-            'query': ' '.join(ids)
-        }
-        response = requests.get(base_url, params=params)
-        return response.text.strip()
-    elif database == 'ENSEMBL':
-        base_url = 'https://rest.ensembl.org/sequence/id/'
-        headers = {'Content-Type': 'application/json'}
-        data = {'ids': ids, 'content-type': 'application/json'}
-        response = requests.post(base_url, headers=headers, data=json.dumps(data))
-        return response.json()
-    else:
-        return f"Invalid database: {database}"
 
 def process_fasta_file(fasta_file):
     stats_output = call_seqkit_stats(fasta_file)
