@@ -13,38 +13,15 @@ import numpy as np
 import pandas as pd
 import urllib.request
 import json
-from molecular_descriptors import getAllDescriptors
+import molecular_descriptors
+from regression import fit_Ridge
 
 '''
 DESCRIPTORS PART
 '''
 
-def fit_Ridge(X_train, X_test, y_train, y_test):
-    pipeline = Pipeline([
-        ('impute', Imputer(strategy='median')),
-        ('scaling', StandardScaler()),
-        ('feature_selection', SelectKBest(score_func=mutual_info_regression)),
-        ('model', RidgeCV())
-    ])
-
-    param_grid = {'feature_selection__k': [5, 10, 20, 40]}
-    grid = GridSearchCV(pipeline, param_grid, cv=10)
-    grid.fit(X_train, y_train)
-    y_pred = grid.predict(X_test)
-
-    metric = [
-        grid.score(X_test, y_test),
-        metrics.explained_variance_score(y_test, y_pred),
-        metrics.mean_absolute_error(y_test, y_pred),
-        metrics.mean_squared_error(y_test, y_pred),
-        metrics.median_absolute_error(y_test, y_pred),
-        metrics.r2_score(y_test, y_pred)
-    ]
-
-    return grid, y_pred, metric
-
 def desc_calc(data: pd.DataFrame, mode: str) -> pd.DataFrame:
-    return getAllDescriptors(data, mode)
+    return molecular_descriptors.getAllDescriptors(data, mode)
 
 def sar_model_evaluation(descriptors: pd.DataFrame):
     y = descriptors['LogP']
@@ -65,7 +42,7 @@ def sar_model_train(descriptors_train: pd.DataFrame, indices):
 
     model.fit(X_train, y_train)
     return model
-    
+
 def sar_model_predict(model, descriptors_pred: pd.DataFrame, indices):
     X_pred = descriptors_pred.iloc[:, indices]
     return model.predict(X_pred)
@@ -122,7 +99,7 @@ if __name__ == "__main__":
     print("Evaluating regression model parameters...")
     model, y_pred, metrics_values = sar_model_evaluation(train_descriptors)
     print('Best parameters are:', model.best_params_)
-    cols = model.best_estimator_.named_steps['feature_selection'].get_support(indices=True) # this are indices from ANOVA
+    cols = model.best_estimator_.named_steps['feature_selection'].get_support(indices=True)  # these are indices from ANOVA
 
     # train the best estimator and predict values
     print("Training the model with the best parameters...")
