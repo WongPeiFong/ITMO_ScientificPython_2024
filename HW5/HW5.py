@@ -1,6 +1,7 @@
 '''
 IMPORT PART
 '''
+
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
@@ -8,15 +9,16 @@ from sklearn.impute import SimpleImputer as Imputer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import RidgeCV
 from sklearn.feature_selection import SelectKBest, mutual_info_regression
-import molecular_descriptors
 import numpy as np
 import pandas as pd
 import urllib.request
 import json
+from molecular_descriptors import getAllDescriptors
 
 '''
 DESCRIPTORS PART
 '''
+
 def fit_Ridge(X_train, X_test, y_train, y_test):
     pipeline = Pipeline([
         ('impute', Imputer(strategy='median')),
@@ -41,19 +43,25 @@ def fit_Ridge(X_train, X_test, y_train, y_test):
 
     return grid, y_pred, metric
 
-def sar_model_evaluation(descriptors: pd.DataFrame, target: pd.Series):
-    X_train, X_test, y_train, y_test = train_test_split(descriptors, target, random_state=42)
+def desc_calc(data: pd.DataFrame, mode: str) -> pd.DataFrame:
+    return getAllDescriptors(data, mode)
+
+def sar_model_evaluation(descriptors: pd.DataFrame):
+    y = descriptors['LogP']
+    X = descriptors.drop(columns=['LogP'])
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
     model1, y_pred1, metrics1 = fit_Ridge(X_train, X_test, y_train, y_test)
     return model1, y_pred1, metrics1
 
-def sar_model_train(descriptors_train: pd.DataFrame, target_train: pd.Series, indices):
-    y_train = target_train
-    X_train = descriptors_train.iloc[:, indices] 
+def sar_model_train(descriptors_train: pd.DataFrame, indices):
+    y_train = descriptors_train['LogP']
+    X_train = descriptors_train.drop(columns=['LogP'])
+    X_train = X_train.iloc[:, indices]  # Keeping only necessary descriptors according to ANOVA evaluation
     
-    a = Imputer(strategy='median')
+    a = Imputer(missing_values=np.nan, strategy='median')
     b = StandardScaler()
     clf = RidgeCV()
-    model = Pipeline([('impute', a), ('scaling', b), ('model', clf)])
+    model = Pipeline([('impute', a), ('scaling', b), ('model', clf)])  # Without ANOVA now
 
     model.fit(X_train, y_train)
     return model
@@ -96,26 +104,31 @@ MAIN PART
 '''
 
 if __name__ == "__main__":
+
     pd.set_option('use_inf_as_na', True)
 
+    # loading data
     train_data = pd.read_csv('logpfull.csv')
     pred_data = pd.read_csv('logp_inputs.csv')
-    cpds = pred_data['SMILES'].tolist()
+    cpds = [row for row in pred_data.loc[:, 'SMILES']]
 
+    # calculating descriptors
     print("Calculating descriptors for training data...")
-    train_descriptors = molecular_descriptors.getAllDescriptors(train_data, mode='train')
+    train_descriptors = desc_calc(train_data, mode='train')
     print("Calculating descriptors for prediction data...")
-    pred_descriptors = molecular_descriptors.getAllDescriptors(pred_data, mode='predict')
+    pred_descriptors = desc_calc(pred_data, mode='predict')
 
+    # finding best estimator
     print("Evaluating regression model parameters...")
-    model, y_pred, metrics_values = sar_model_evaluation(train_descriptors.drop(columns=['LogP']), train_data['LogP'])
+    model, y_pred, metrics_values = sar_model_evaluation(train_descriptors)
     print('Best parameters are:', model.best_params_)
-    cols = model.best_estimator_.named_steps['feature_selection'].get_support(indices=True)
+    cols = model.best_estimator_.named_steps['feature_selection'].get_support(indices=True) # this are indices from ANOVA
 
+    # train the best estimator and predict values
     print("Training the model with the best parameters...")
-    final_model = sar_model_train(train_descriptors.drop(columns=['LogP']), train_data['LogP'], cols)
+    final_model = sar_model_train(train_descriptors, cols)
 
-    for cpd in cpds:
+    for cpd in cpds:      
         cpd_descriptors = pred_descriptors[pred_descriptors['SMILES'] == cpd]
         pred = sar_model_predict(final_model, cpd_descriptors.drop(columns=['SMILES']), cols)
         print(f"Predicted LogP value for compound {cpd}:", pred)
@@ -128,8 +141,8 @@ if __name__ == "__main__":
         print("Filtering logP...")
         for cid in similarity:
             xlogp = get_xlogp(cid)
-            if xlogp is not None:
+            if xlogp:
                 if pred * 0.9 <= xlogp <= pred * 1.1:
                     result.append((cid, xlogp))
 
-        print(f"Request for compound {cpd} completed. Found CIDs with XLogP in the range of {pred} ± 10%: {result}")
+        print(f"Request for compound {cpd} completed. I found the following CIDs in PubChem with XLogP in the range of {pred} ± 10%: {result}")
