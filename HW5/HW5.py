@@ -15,32 +15,6 @@ import urllib.request
 import json
 
 '''
-UTILITY FUNCTIONS
-'''
-
-def test_train_split(file, test_size_value=0.25, train_size_value=None):
-    descriptors, target = descriptor_target_split(file)
-    x_train, x_test, y_train, y_test = train_test_split(descriptors, target, test_size=test_size_value,
-                                                        train_size=train_size_value)
-    train = descriptor_target_join(x_train, y_train)
-    train.reset_index(inplace=True)
-    train.drop('index', axis=1, inplace=True)
-    test = descriptor_target_join(x_test, y_test)
-    test.reset_index(inplace=True)
-    test.drop('index', axis=1, inplace=True)
-    return train, test
-
-def descriptor_target_split(file):
-    target = file.loc[:, file.columns == 'LogP']
-    descriptors = file.loc[:, file.columns != 'LogP']
-    return descriptors, target
-
-def descriptor_target_join(descriptors, target):
-    descriptors['LogP'] = target['LogP']
-    file = descriptors
-    return file
-
-'''
 DESCRIPTORS PART
 '''
 def fit_Ridge(X_train, X_test, y_train, y_test):
@@ -67,9 +41,6 @@ def fit_Ridge(X_train, X_test, y_train, y_test):
 
     return grid, y_pred, metric
 
-def desc_calc(data: pd.DataFrame, mode) -> pd.DataFrame:
-    return molecular_descriptors.getAllDescriptors(data, mode)
-
 def sar_model_evaluation(descriptors: pd.DataFrame, target: pd.Series):
     X_train, X_test, y_train, y_test = train_test_split(descriptors, target, random_state=42)
     model1, y_pred1, metrics1 = fit_Ridge(X_train, X_test, y_train, y_test)
@@ -77,12 +48,12 @@ def sar_model_evaluation(descriptors: pd.DataFrame, target: pd.Series):
 
 def sar_model_train(descriptors_train: pd.DataFrame, target_train: pd.Series, indices):
     y_train = target_train
-    X_train = descriptors_train.iloc[:, indices]  # Keeping only necessary descriptors according to ANOVA evaluation
+    X_train = descriptors_train.iloc[:, indices] 
     
     a = Imputer(strategy='median')
     b = StandardScaler()
     clf = RidgeCV()
-    model = Pipeline([('impute', a), ('scaling', b), ('model', clf)])  # Without ANOVA now
+    model = Pipeline([('impute', a), ('scaling', b), ('model', clf)])
 
     model.fit(X_train, y_train)
     return model
@@ -132,9 +103,9 @@ if __name__ == "__main__":
     cpds = pred_data['SMILES'].tolist()
 
     print("Calculating descriptors for training data...")
-    train_descriptors = desc_calc(train_data, mode='train')
+    train_descriptors = molecular_descriptors.getAllDescriptors(train_data, mode='train')
     print("Calculating descriptors for prediction data...")
-    pred_descriptors = desc_calc(pred_data, mode='predict')
+    pred_descriptors = molecular_descriptors.getAllDescriptors(pred_data, mode='predict')
 
     print("Evaluating regression model parameters...")
     model, y_pred, metrics_values = sar_model_evaluation(train_descriptors.drop(columns=['LogP']), train_data['LogP'])
