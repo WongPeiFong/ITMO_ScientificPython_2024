@@ -5,7 +5,7 @@ IMPORT PART
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer as Imputer
+from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import RidgeCV
 from sklearn.feature_selection import SelectKBest, mutual_info_regression
@@ -24,18 +24,18 @@ def desc_calc(data: pd.DataFrame, mode: str) -> pd.DataFrame:
     return molecular_descriptors.getAllDescriptors(data, mode)
 
 def sar_model_evaluation(descriptors: pd.DataFrame):
-    y = descriptors['LogP']
-    X = descriptors.drop(columns=['LogP'])
+    y = descriptors['Target']
+    X = descriptors.drop(columns=['Target'])
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
     model1, y_pred1, metrics1 = fit_Ridge(X_train, X_test, y_train, y_test)
     return model1, y_pred1, metrics1
 
 def sar_model_train(descriptors_train: pd.DataFrame, indices):
-    y_train = descriptors_train['LogP']
-    X_train = descriptors_train.drop(columns=['LogP'])
+    y_train = descriptors_train['Target']
+    X_train = descriptors_train.drop(columns=['Target'])
     X_train = X_train.iloc[:, indices]  # Keeping only necessary descriptors according to ANOVA evaluation
     
-    a = Imputer(missing_values=np.nan, strategy='median')
+    a = SimpleImputer(strategy='median')
     b = StandardScaler()
     clf = RidgeCV()
     model = Pipeline([('impute', a), ('scaling', b), ('model', clf)])  # Without ANOVA now
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         for cid in similarity:
             xlogp = get_xlogp(cid)
             if xlogp:
-                if pred * 0.9 <= xlogp <= pred * 1.1:
+                if xlogp <= pred * 1.1 and xlogp >= pred * 0.9:
                     result.append((cid, xlogp))
 
         print(f"Request for compound {cpd} completed. I found the following CIDs in PubChem with XLogP in the range of {pred} ± 10%: {result}")
